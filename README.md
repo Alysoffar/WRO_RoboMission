@@ -31,11 +31,11 @@ You can call or skip them in main() by commenting/uncommenting the lines.
 ## 🤖 Core Movement Functions
 -Reusable robot actions:
 ~~~python
-async def move_cm(cm, speed): //Drive straight by a certain distance.
+async def move_cm(cm, speed): #Drive straight by a certain distance.
 pass
-async def turn_degrees(angle, speed): //Turn on the spot.
+async def turn_degrees(angle, speed): #Turn on the spot.
 pass
-async def follow_line(speed, stop_color): //Follow a line until a specific color is detected.
+async def follow_line(speed, stop_color): #Follow a line until a specific color is detected.
 pass
 ~~~
 ## 🔌 Port Setup
