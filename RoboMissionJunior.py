@@ -1,11 +1,11 @@
 from hub import light_matrix
-from spike import PrimeHub, Motor, MotorPair, ColorSensor, DistanceSensor
+from spike import PrimeHub, Motor, MotorPair, ColorSensor, TouchSensor
 from spike.control import wait_for_seconds, Timer
 import math
 import runloop
 #This Function runs the whole code so every thing must be here (as a Function as the main calls the function),
 #Functions: If U have a piece of code that U wan to do multiple of times , for example u want to excute a block of code 10 times, is it better to just copy and paste it or to do another\
-#block to do the code 10 times, this is the function, it is a code that u can call at any time u want , the function to be excuted does not run like normal main function, it needs to be called, 
+#block to do the code 10 times, this is the function, it is a code that u can call at any time u want , the function to be excuted does not run like normal main function, it needs to be called,
 #to just callthe function all u need is just call its name for example if the function is def func() the name of the function (which is func).
 
 #async is like bread oven for example when U put 3 loaves of bread in the oven, it comes out sequentially, like the first comes out first then the second then the third, this happens due to await function
@@ -38,12 +38,17 @@ drive_base = MotorPair('A', 'B')
 # Attachment Motors (The Tools)
 # This could be an arm for collecting things or pressing buttons.
 tool_motor = Motor('C')    # Port C for your arm or tool
-
+arm_forward_motor = Motor('')
+arm_backward_motor = Motor('')
 # Sensors (Your Robot's Senses)
 # A color sensor on the bottom for following lines or seeing colored areas.
 color_sensor_bottom = ColorSensor('F')
 # A color sensor on the front for identifying the colored research samples.
 color_sensor_front = ColorSensor('E')
+
+# The trigger sensor
+touch_sensor = TouchSensor('') ## NEW ##
+
 
 # --- STEP 3: ROBOT CONSTANTS ---
 # !!! YOUR TEAM MUST MEASURE AND CHANGE THESE VALUES FOR ACCURACY !!!
@@ -54,9 +59,17 @@ WHEEL_CIRCUMFERENCE_CM = WHEEL_DIAMETER_CM * math.pi
 
 # The distance between the center of your two driving wheels.
 AXLE_TRACK_CM = 11.2
+# --- GLOBAL STATE VARIABLES ---
+# These variables act as the robot's memory during the run.
+
+has_drone = False
+samples_collected = [] # A list to store the colors of samples we pick up, e.g., ['red', 'green']
+number_of_samples_in_hopper = 0# The maximum number of samples your robot can hold at once.
 
 # --- STEP 4: CORE MOVEMENT & ACTION FUNCTIONS (The Robot's Skills) ---
 # These are the basic abilities of your robot. You will use these inside your missions.
+
+
 
 def move_cm(centimeters, speed):
     """
@@ -82,7 +95,8 @@ def turn_degrees(angle, speed):
     drive_base.move_tank(degrees_to_rotate, 'degrees', left_speed=-speed, right_speed=speed)
     print(f"Turned {angle} degrees")
 
-def follow_line(speed, stop_color='white'):
+#optional according to if u want tp add line tracking or not
+'''def follow_line(speed, stop_color='white'):
     """
     Follows the edge of a black line using the bottom color sensor.
     It will stop when the sensor detects the 'stop_color'.
@@ -104,72 +118,201 @@ def follow_line(speed, stop_color='white'):
         drive_base.start(int(steering), speed=speed) # Use start() for continuous moving.
 
     drive_base.stop()
-    print("Line following finished.")
+    print("Line following finished.")'''
+
+# === Arm A Functions ===
+# Arm A is responsible for collecting and dropping two samples.
+
+def execute_collect_mechanism_arm_a():
+    """
+    This function closes the claw of Arm A to collect two samples.
+    The claw is closed by rotating the motor backwards (negative degrees).
+    """
+    print("ARM A: Closing claw to collect samples.")
+
+    # Rotate the motor backward to close the claw and grip the samples.
+    arm_forward_motor.run_for_degrees(-90, speed=50)# -90 degrees closes the claw. Adjust as needed.
+
+    # Short pause to ensure the movement completes before moving on.
+    wait_for_seconds(0.5)
+
+def execute_drop_mechanism_arm_a():
+    """
+    This function opens the claw of Arm A to drop the two collected samples.
+    The claw is opened by rotating the motor forward (positive degrees).
+    """
+    print("ARM A: Opening claw to drop samples.")
+
+    # Rotate the motor forward to open the claw and release the samples.
+    arm_forward_motor.run_for_degrees(90, speed=50)# 90 degrees opens the claw. Adjust as needed.
+
+    # Short pause to allow the mechanism to fully open before proceeding.
+    wait_for_seconds(0.5)
+
+# === Arm B Functions ===
+# Arm B is used to take two balls and lower the satellite arm after placing them.
+
+def execute_collect_mechanism_arm_b():
+    """
+    This function closes the claw of Arm B to pick up two balls.
+    """
+    print("ARM B: Closing claw to take balls.")
+
+    # Close the claw by rotating the motor backwards.
+    arm_backward_motor.run_for_degrees(-90, speed=50)
+
+    # Brief delay to ensure completion.
+    wait_for_seconds(0.5)
+
+def execute_drop_mechanism_arm_b():
+    """
+    This function opens the claw of Arm B to drop the two balls into the desired area.
+    """
+    print("ARM B: Opening claw to release balls.")
+
+    # Open the claw by rotating the motor forward.
+    arm_backward_motor.run_for_degrees(90, speed=50)
+
+    # Delay for smooth operation.
+    wait_for_seconds(0.5)
+
+
+# === Sample Usage Flow ===
+# Here's an example of how these functions could be used in sequence.
+# You might call these in response to button presses, sensor inputs, or autonomous logic.
+
+"""
+# Example sequence of operations:
+execute_collect_mechanism_arm_a()
+# (Robot moves to drop location for samples)
+execute_drop_mechanism_arm_a()
+
+execute_collect_mechanism_arm_b()
+# (Robot moves to drop zone for balls)
+execute_drop_mechanism_arm_b()
+lower_satellite_arm()
+"""
+
+
+
 
 # --- STEP 5: MARS MISSION FUNCTIONS (The Plan for Each Task) ---
-# Here we create a function for each task from the rulebook.
-# Your team's job is to fill in the code for each mission!
+# These functions represent each mission from the rulebook.
+# They now utilize the correct robotic arms for specific tasks.
 
-def mission_1_collect_drone():
-    """Mission 3.1: Drives to the drone, collects it, and returns it to the start area."""
-    print("Executing Mission 1: Collect Drone")
-    # Your team's plan:
-    # 1. Drive out from the start area towards the drone.
-    # 2. Use a mechanism to hook or grab the drone model.
-    # 3. Drive back to the start area.
-    # 4. Release the drone so it's inside the start area.
+#NOTE Add speed to moves
 
-    pass # <-- REMOVE 'pass' AND ADD YOUR CODE HERE
-
-def mission_2_help_stranded_rover():
-    """Mission 3.2: Drives to the stranded rover and pushes its solar panel to be flat."""
-    print("Executing Mission 2: Help Stranded Rover")
-    # Your team's plan:
-    # 1. Navigate along the black lines to get to the rover.
-    # 2. Align your robot carefully with the upright solar panel.
-    # 3. Drive forward slowly or use an arm to push the panel down so it is horizontal.
-
-    pass # <-- REMOVE 'pass' AND ADD YOUR CODE HERE
-
-def mission_3_deliver_one_sample(sample_color):
+def run_mission_get_water():
     """
-    Mission 3.3: Finds a research sample of a specific color, picks it up,
-    and delivers it to the matching colored lab.
+    Mission: Push the water dispenser.
+    Simple drive and push action.
     """
-    print(f"Executing Mission 3: Deliver {sample_color} sample")
-    # Your team's plan for ONE sample:
-    # 1. Navigate to the research sample area in the middle of the field.
-    # 2. Search for the sample. You could drive slowly past the 6 locations, using
-    #    the front color sensor to check each one until it sees the 'sample_color'.
-    # 3. When you find it, use an arm to collect it.
-    # 4. Navigate to the correct colored lab (e.g., the yellow hexagon).
-    # 5. Drop the sample completely inside the lab area.
 
-    pass # <-- REMOVE 'pass' AND ADD YOUR CODE HERE
+    print("Executing Mission: Get Water")
 
-def mission_4_release_water():
-    """Mission 3.4: Drives to the water dispenser and activates it."""
-    print("Executing Mission 4: Release Water Supply")
-    # Your team's plan:
-    # 1. Navigate from the start area to the left side of the field.
-    # 2. Align the robot with the dispenser mechanism.
-    # 3. Use your robot or a tool to push the lever, releasing the blue balls.
+    move_cm(25, speed=40)        # Approach the water station
+    turn_degrees(-90)            # Face the dispenser
+    move_cm(18)                    # Close in carefully
+    move_cm(5, speed=75)        # Push sharply to activate dispenser
+    move_cm(-23)                # Back away
+    turn_degrees(90)            # Reorient to original direction
 
-    pass # <-- REMOVE 'pass' AND ADD YOUR CODE HERE
+def run_mission_get_drone():
+    """
+    Mission: Pick up the drone using Arm B.
+    The drone is a special object handled by the second arm.
+    """
+    global has_drone, samples_collected
+    print("Executing Mission: Get Drone")
 
-def mission_5_cross_terrain_and_park():
-    """Mission 3.5: Navigates the rough terrain and parks fully in the target area."""
-    print("Executing Mission 5: Cross Rough Terrain and Park")
-    # Your team's plan:
-    # 1. Navigate to the start of the rough terrain area.
-    # 2. Drive slowly and straight, right through the middle of the axles.
-    # 3. Stop your robot so it is completely inside the white target area.
+    move_cm(50)                        # Move to drone pickup area
+    execute_collect_mechanism_arm_b()# Use Arm B to grab the drone
+    has_drone = True                    # Mark that the drone is now onboard
+    move_cm(-10)                        # Back away to avoid collisions
 
-    pass # <-- REMOVE 'pass' AND ADD YOUR CODE HERE
+def run_mission_help_rover():
+    """
+    Mission: Locate the rover using a line-following strategy,
+    gently push it, and then back off.
+    """
+    print("Executing Mission: Help Rover")
+
+    turn_degrees(-30)# Slight angle to align with line
+    drive_base.se
+    move_cm(20)
+
+    # Follow the line until the bottom color sensor detects black
+    while color_sensor_bottom.get_color() != 'black':
+        pass
+    drive_base.stop()
+
+    turn_degrees(30)        # Re-align toward rover
+    move_cm(15, speed=20)# Carefully approach rover
+    move_cm(5, speed=40)    # Small push to assist rover
+    move_cm(-20)            # Back off safely
+
+def run_mission_sample_sweep():
+    """
+    Mission: Drive to up to three sample positions, scan for valid colors,
+    and collect if valid. Uses Arm A for sample collection.
+    """
+    global has_drone, samples_collected
+    print("Executing Mission: Sample Sweep")
+
+    valid_sample_colors = ['red', 'green', 'white', 'yellow']# Valid samples
+
+
+    move_cm(15)        # Move to next sample area
+    turn_degrees(-90)# Face sample
+    move_cm(5)        # Get close to the sample
+
+    detected_color = color_sensor_front.get_color()
+    print(f"Sensor sees: {detected_color}")
+
+    if detected_color in valid_sample_colors:
+        execute_collect_mechanism_arm_a()# Use Arm A to collect sample
+        samples_collected.append(detected_color)
+        print(f"Collected {detected_color}! Hopper: {samples_collected}")
+
+    move_cm(-5)        # Back away from sample
+    turn_degrees(90)    # Return to forward-facing
+
+
+def run_mission_park():
+
+    """
+    Drives the robot forward slowly until the touch sensor is pressed,
+    then stops and moves an extra 2 cm.
+    """
+    move_cm(-20)
+    turn_degrees(90)
+    move_cm(5)
+    turn_degrees(-90)
+
+    print("Moving forward until touch sensor is activated...")
+
+    # Start moving forward at a slow, controlled speed
+    drive_base.start(speed=20)
+
+    # This function will pause the code until the condition is met
+    touch_sensor.wait_until_pressed()
+
+    # As soon as it's pressed, stop immediately.
+    drive_base.stop()
+    print("Touch sensor activated!")
+
+    # Now, perform the small 2 cm nudge.
+    print("Nudging forward 2 cm.")
+    move_cm(2, speed=15) # Use a very slow speed for precision
+
+
+
 
 # --- STEP 6: MAIN MISSION CONTROL (The Story of Your Run) ---
 # This is where you decide the order of your missions to get the most points!
+
 def main():
+
     # Countdown and start timer!
     hub.light_matrix.write("321")
     hub.speaker.beep()
@@ -180,11 +323,11 @@ def main():
     # Arrange them in the order you want your robot to perform them.
 
     # Example Plan:
-    mission_1_collect_drone()
-    # mission_2_help_stranded_rover()
-    # mission_4_release_water()
-    # mission_3_deliver_one_sample('yellow') # Try to get one specific sample
-    # mission_5_cross_terrain_and_park()
+    run_mission_get_water()
+    run_mission_get_drone()
+    run_mission_help_rover()
+    run_mission_sample_sweep('yellow') # Try to get one specific sample
+    run_mission_park()
 
     # --- MISSION COMPLETE ---
     total_time = mission_timer.now()
